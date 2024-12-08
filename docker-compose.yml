@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: telemetry_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: telemetry
+    ports:
+      - "5432:5432"
+    volumes:
+      - telemetry_db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - telemetry_network
+
+  telemetryingestion:
+    build:
+      context: .
+      dockerfile: telemetryingestion/Dockerfile
+    container_name: telemetry_ingestor
+    depends_on:
+      - db
+    networks:
+      - telemetry_network
+    ports:
+      - "8089:8089/udp"
+      - "6060:6060"
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/telemetry?sslmode=disable
+
+  turionbackend:
+    build:
+      context: .
+      dockerfile: turionbackend/Dockerfile
+    container_name: turion_backend
+    depends_on:
+      - db
+    networks:
+      - telemetry_network
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/telemetry?sslmode=disable
+
+  turionfrontend:
+    build: ./telemetry-dashboard
+    networks:
+      - telemetry_network
+    ports:
+      - "3000:3000"
+    depends_on:
+      - turionbackend
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3001"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana.ini:/etc/grafana/grafana.ini
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - tempo
+    networks:
+      - telemetry_network
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    ports:
+      - "14268:14268" # OpenTelemetry HTTP endpoint
+      - "3100:3100"   # Query endpoint for Grafana
+    volumes:
+      - type: tmpfs
+        target: /var/lib/tempo/traces
+      - ./tempo.yaml:/etc/tempo.yaml
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    environment:
+      - TEMPO_CONFIG_FILE=/etc/tempo.yaml
+    networks:
+      - telemetry_network
+
+  telemetrygenerator:
+    build:
+      context: ./telemetrygenerator
+      dockerfile: Dockerfile
+    container_name: telemetry_generator
+    networks:
+      - telemetry_network
+    environment:
+      PACKET_DELAY: "500ms"
+
+  k6:
+    image: grafana/k6
+    container_name: k6
+    networks:
+      - telemetry_network
+    volumes:
+      - ./k6test.js:/scripts/k6test.js
+    entrypoint: ["/bin/sh", "-c", "sleep infinity"] #just a random bash command to keep k6 running
+
+volumes:
+  telemetry_db_data:
+  grafana-data:
+  tempo-data:
+
+networks:
+  telemetry_network:
+

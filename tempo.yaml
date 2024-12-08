@@ -1,0 +1,27 @@
+server:
+  http_listen_port: 3100
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:14268 # Match the endpoint used by your application
+
+ingester:
+  trace_idle_period: 10s
+  max_block_bytes: 5e6
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/lib/tempo/traces
+
+compactor:
+  compaction:
+    block_retention: 24h
+
+querier:
+  frontend_worker:
+    frontend_address: 127.0.0.1:9095
