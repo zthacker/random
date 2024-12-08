@@ -23,3 +23,17 @@ go.work.sum
 
 # env file
 .env
+
+# Node modules
+node_modules/
+
+# Build outputs
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
