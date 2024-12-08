@@ -167,5 +167,3 @@ docker-compose down -v
 | Run the k6 load test             | `docker-compose run --rm k6 k6 run /scripts/k6test.js`                                  |
 | Check service status             | `docker-compose ps`                                                                     |
 | Remove all services and volumes  | `docker-compose down -v`                                                                |
-
-This guide ensures that users can manage all services effectively, while running on-demand tasks like telemetry generation and load testing as needed. 🚀
